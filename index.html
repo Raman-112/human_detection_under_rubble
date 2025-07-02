@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Disaster Management Live Feed</title>
+  <!-- Bootstrap CSS -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+  <!-- Font Awesome for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Custom CSS for animations and styling -->
+  <style>
+    :root {
+      --primary: #134074;
+      --secondary: #0b2545;
+      --accent: #ff5a5f;
+      --light: #f8f9fa;
+      --success: #2ecc71;
+      --warning: #f39c12;
+      --danger: #e74c3c;
+      --info: #3498db;
+    }
+    body {
+      background: linear-gradient(135deg, #f6f9fc, #edf2f7);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      min-height: 100vh;
+      padding: 20px 0;
+    }
+    .page-container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    .dashboard-header {
+      background: linear-gradient(90deg, var(--primary), var(--secondary));
+      color: white;
+      padding: 15px 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      position: relative;
+      overflow: hidden;
+    }
+    .dashboard-header h1 {
+      margin: 0;
+      font-weight: 600;
+      font-size: 1.8rem;
+      display: flex;
+      align-items: center;
+    }
+    .dashboard-header .badge {
+      background-color: var(--accent);
+      margin-left: 15px;
+      padding: 8px 12px;
+      font-size: 0.8rem;
+      animation: pulse 2s infinite;
+    }
+    .card {
+      border: none;
+      border-radius: 15px;
+      overflow: hidden;
+      margin-bottom: 20px;
+      box-shadow: 0 8px 15px rgba(0,0,0,0.07);
+      transition: all 0.3s ease;
+      animation: slideUp 0.7s ease-out forwards;
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 12px 20px rgba(0,0,0,0.12);
+    }
+    @keyframes slideUp {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .card:nth-child(1) { animation-delay: 0.1s; }
+    .card:nth-child(2) { animation-delay: 0.2s; }
+    .card:nth-child(3) { animation-delay: 0.3s; }
+    .card:nth-child(4) { animation-delay: 0.4s; }
+    .card-header {
+      background: linear-gradient(90deg, var(--primary), var(--secondary));
+      color: var(--light);
+      font-weight: 600;
+      font-size: 1.2rem;
+      padding: 12px 20px;
+      border-bottom: none;
+      display: flex;
+      align-items: center;
+    }
+    .card-header i {
+      font-size: 1.3rem;
+      margin-right: 10px;
+    }
+    .card-body {
+      padding: 25px;
+      background-color: white;
+    }
+    .stats-container {
+      background: linear-gradient(135deg, #f6f9fc, #edf2f7);
+      border-radius: 12px;
+      padding: 40px 20px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+    .stats-container::before {
+      content: '';
+      position: absolute;
+      top: -20px;
+      left: -20px;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background-color: rgba(255,255,255,0.3);
+      z-index: 0;
+    }
+    .stats-container::after {
+      content: '';
+      position: absolute;
+      bottom: -30px;
+      right: -30px;
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background-color: rgba(0,0,0,0.03);
+      z-index: 0;
+    }
+    #peopleCount {
+      font-size: 6rem;
+      font-weight: 700;
+      color: var(--success);
+      text-shadow: 0 2px 10px rgba(46,204,113,0.2);
+      position: relative;
+      z-index: 1;
+      display: inline-block;
+      margin-bottom: 20px;
+    }
+    .count-label {
+      display: block;
+      font-size: 1.5rem;
+      color: #8795a1;
+      margin-top: 15px;
+      font-weight: 500;
+    }
+    .table {
+      margin-bottom: 0;
+    }
+    .table-responsive {
+      max-height: 300px;
+      border-radius: 8px;
+    }
+    .table thead th {
+      background-color: #edf2f7;
+      color: var(--secondary);
+      font-weight: 600;
+      border-top: none;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    .table tbody tr {
+      transition: all 0.2s ease;
+    }
+    .table tbody tr:hover {
+      background-color: rgba(19, 64, 116, 0.05);
+    }
+    .table tbody td {
+      vertical-align: middle;
+      padding: 12px 15px;
+      border-color: #edf2f7;
+    }
+    #humanChart {
+      min-height: 300px;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+    .new-row {
+      animation: rowHighlight 2s ease;
+    }
+    @keyframes rowHighlight {
+      0% { background-color: rgba(46, 204, 113, 0.2); }
+      100% { background-color: transparent; }
+    }
+    .loading-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: linear-gradient(to right, var(--accent), var(--success));
+      z-index: 1000;
+      animation: progressAnimation 2s infinite linear;
+      background-size: 200% 100%;
+    }
+    @keyframes progressAnimation {
+      0% { background-position: 100% 0; }
+      100% { background-position: -100% 0; }
+    }
+    @media (max-width: 992px) {
+      .dashboard-header h1 {
+        font-size: 1.5rem;
+      }
+      #peopleCount {
+        font-size: 4rem;
+      }
+    }
+    @media (max-width: 768px) {
+      .dashboard-header h1 {
+        font-size: 1.3rem;
+      }
+      .dashboard-header .badge {
+        display: none;
+      }
+      #peopleCount {
+        font-size: 3.5rem;
+      }
+    }
+    .counter-animation {
+      display: inline-block;
+      transform: scale(1);
+      animation: countUpdate 0.5s ease-out;
+    }
+    @keyframes countUpdate {
+      0% { transform: scale(1.3); color: #ff5a5f; }
+      100% { transform: scale(1); }
+    }
+    .people-card {
+      height: 100%;
+    }
+    .detection-icon {
+      font-size: 3rem;
+      color: var(--success);
+      margin-bottom: 20px;
+    }
+    .live{
+        background-color: var(--accent);
+        margin-left: 13px;
+        padding: 8px 12px;
+        font-size: 0.8rem;
+        width: 80px;
+        border-color:var(--accent);
+        color: #f8f9fa;
+        font-size: large;
+        font-weight: 500;
+        border-radius: 5px;
+    }
+    .live:hover{
+        animation: pulse 2s infinite;
+        transform: scale(1.05);     
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+    .presence-status {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      margin-right: 10px;
+    }
+    .presence-active {
+      background-color: var(--success);
+      box-shadow: 0 0 10px rgba(46, 204, 113, 0.5);
+    }
+    .presence-inactive {
+      background-color: var(--danger);
+      box-shadow: 0 0 10px rgba(231, 76, 60, 0.5);
+    }
+  </style>
+</head>
+<body>
+  <!-- Loading bar indicator -->
+  <div class="loading-bar"></div>
+  
+  <div class="page-container">
+    <!-- Dashboard Header -->
+    <div class="dashboard-header">
+      <h1>
+        <i class="fas fa-satellite-dish me-2"></i>
+        Disaster Management Monitoring System
+      </h1>
+    </div>
+    
+    <div class="container-fluid">
+      <div class="row">
+        <!-- Left Column -->
+        <div class="col-lg-6">
+          <!-- People Count - Now taking the full space -->
+          <div class="card people-card">
+            <div class="card-header">
+              <i class="fas fa-users"></i>Human Presence Status (Below Ground)
+            </div>
+            <div class="card-body">
+              <div class="stats-container">
+                <i class="fas fa-user-shield detection-icon"></i>
+                <div id="presenceStatus" class="mb-4">
+                  <span id="presenceIndicator" class="presence-status presence-inactive"></span>
+                  <span id="presenceText" style="font-size: 2rem; font-weight: 600; color: #e74c3c;">No Presence Detected</span>
+                </div>
+                <div id="peopleCount" class="counter-animation">0</div>
+                <span class="count-label">Total Detections</span>
+                <p class="mt-4 text-muted">Monitoring active populations in the disaster area</p>
+                <div class="mt-3">
+                  <button class="live">LIVE</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="col-lg-6">
+          <!-- Human Detection Chart -->
+          <div class="card">
+            <div class="card-header">
+              <i class="fas fa-chart-line"></i><span>Signal Waveform</span>
+            </div>
+            <div class="card-body">
+              <canvas id="humanChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Table of Person Detections -->
+          <div class="card">
+            <div class="card-header">
+              <i class="fas fa-clipboard-list"></i>Person Detections Log (Above Ground)
+            </div>
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="table table-hover">
+                  <thead>
+                    <tr>
+                      <th>Timestamp</th>
+                      <th>Presence</th>
+                      <th>Accuracy</th>
+                      <th>Bounding Box</th>
+                    </tr>
+                  </thead>
+                  <tbody id="detectionTableBody">
+                    <!-- Populated by Firebase data -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase SDK and JavaScript -->
+  <script type="module">
+    // Import Firebase modules (Modular V9+)
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+    import {
+      getDatabase,
+      ref,
+      onValue
+    } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
+
+    // Your Firebase configuration object
+    const firebaseConfig = {
+      apiKey: "AIzaSyAOh-D6OMwrTu3IWfarKo0nh4bt3LeaXlI",
+      authDomain: "raspberrydata-41e99.firebaseapp.com",
+      databaseURL: "https://raspberrydata-41e99-default-rtdb.firebaseio.com/",
+      projectId: "raspberrydata-41e99",
+      storageBucket: "raspberrydata-41e99.firebasestorage.app",
+      messagingSenderId: "161208007104",
+      appId: "1:161208007104:web:d0f4d7ca61f4e37f33f025"
+    };
+
+    // Initialize Firebase and database
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // Function to animate count change
+    function animateValue(element, start, end, duration) {
+      element.classList.remove('counter-animation');
+      if (start === end) return;
+      let startTimestamp = null;
+      const step = (timestamp) => {
+        if (!startTimestamp) startTimestamp = timestamp;
+        const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+        const value = Math.floor(progress * (end - start) + start);
+        element.textContent = value;
+        if (progress < 1) {
+          window.requestAnimationFrame(step);
+        } else {
+          element.textContent = end;
+          element.classList.add('counter-animation');
+        }
+      };
+      window.requestAnimationFrame(step);
+    }
+    
+    // Function to update presence indicator with actual count
+    function updatePresenceIndicator(detectionCount) {
+      const indicator = document.getElementById('presenceIndicator');
+      const text = document.getElementById('presenceText');
+      
+      if (detectionCount > 0) {
+        // Active presence
+        indicator.className = 'presence-status presence-active';
+        
+        // Show the exact count in the status message
+        if (detectionCount === 1) {
+          text.textContent = '1 Person Detected';
+        } else {
+          text.textContent = `${detectionCount} People Detected`;
+        }
+        text.style.color = '#2ecc71';
+      } else {
+        // No presence
+        indicator.className = 'presence-status presence-inactive';
+        text.textContent = 'No Presence Detected';
+        text.style.color = '#e74c3c';
+      }
+    }    // Setup variables for Firebase data
+    let humanDetectionValue = 0;
+    let currentPeopleCount = 0;
+    let currentAmplitude = 0;
+    let lastAmplitudeUpdate = Date.now(); // New variable for amplitude decay
+    let amplitudeDecayFactor = 1.0;      // New variable for decay factor
+    let humanDetected = false;           // Flag to keep count at 1 once detected
+
+    // Person Detections
+    const personRef = ref(db, 'person_detections');
+    
+    onValue(personRef, (snapshot) => {
+      const data = snapshot.val();
+      const detectionTableBody = document.getElementById('detectionTableBody');
+      // Clear existing rows but maintain a reference to them for smooth transitions
+      const existingRows = Array.from(detectionTableBody.children);
+      detectionTableBody.innerHTML = '';
+
+      if (data) {
+        const entries = Object.entries(data).sort((a, b) => {
+          // Sort by timestamp if available (newest first)
+          const timeA = a[1].timestamp || '';
+          const timeB = b[1].timestamp || '';
+          return timeB.localeCompare(timeA);
+        });
+        
+        // Add rows to table with animation
+        entries.forEach(([ key, val ], index) => {
+          const row = document.createElement('tr');
+          if (index === 0) row.classList.add('new-row'); // Highlight newest entry
+          const timestampTd = document.createElement('td');
+          const presenceTd = document.createElement('td');
+          const confidenceTd = document.createElement('td');
+          const bboxTd = document.createElement('td');
+          timestampTd.textContent = val.timestamp || 'N/A';
+          // Add presence indicator
+          const presenceIndicator = document.createElement('span');
+          presenceIndicator.className = 'badge ' + (index === 0 ? 'bg-success' : 'bg-secondary');
+          presenceIndicator.textContent = 'Present';
+          presenceTd.appendChild(presenceIndicator);
+          if (val.confidence) {
+            // Format confidence as percentage with color indicator
+            const confidenceValue = (val.confidence * 100).toFixed(1);
+            const confidenceSpan = document.createElement('span');
+            confidenceSpan.textContent = `${confidenceValue}%`;
+            // Color based on confidence level
+            if (val.confidence > 0.8) {
+              confidenceSpan.style.color = '#2ecc71'; // High confidence
+            } else if (val.confidence > 0.5) {
+              confidenceSpan.style.color = '#f39c12'; // Medium confidence
+            } else {
+              confidenceSpan.style.color = '#e74c3c'; // Low confidence
+            }
+            confidenceTd.appendChild(confidenceSpan);
+          } else {
+            confidenceTd.textContent = 'N/A';
+          }
+          if (val.bbox) {
+            // Format bounding box data in a more readable way
+            const bboxText = document.createElement('small');
+            bboxText.innerHTML = `
+              <span class="badge bg-secondary me-1">x1: ${val.bbox.x1}</span>
+              <span class="badge bg-secondary me-1">y1: ${val.bbox.y1}</span>
+              <span class="badge bg-secondary me-1">x2: ${val.bbox.x2}</span>
+              <span class="badge bg-secondary">y2: ${val.bbox.y2}</span>
+            `;
+            bboxTd.appendChild(bboxText);
+          } else {
+            bboxTd.textContent = 'N/A';
+          }
+          row.appendChild(timestampTd);
+          row.appendChild(presenceTd);
+          row.appendChild(confidenceTd);
+          row.appendChild(bboxTd);
+          detectionTableBody.appendChild(row);
+        });
+        // Limit to 15 rows for performance
+        while (detectionTableBody.children.length > 15) {
+          detectionTableBody.removeChild(detectionTableBody.lastChild);
+        }
+      }
+    });
+
+    // Maintain a real-time buffer of signal data
+    const TIME_WINDOW = 8; // 10 second window
+    const SAMPLE_RATE = 14; // 10 samples per second
+    const BUFFER_SIZE = TIME_WINDOW * SAMPLE_RATE;
+
+    // Initialize time and data arrays
+    let timeData = Array(BUFFER_SIZE).fill(0).map((_, i) => i / SAMPLE_RATE);
+    let signalData = Array(BUFFER_SIZE).fill(0);
+    let lastTimestamp = Date.now();
+    let startTime = Date.now();
+
+    // Setup Chart.js for real-time signal display
+    const ctx = document.getElementById('humanChart').getContext('2d');
+    
+    // Chart configuration for oscilloscope-like display
+    const chartData = {
+      labels: timeData.map(t => t.toFixed(1)),
+      datasets: [        {
+          label: 'Microwave Frequency Signal',
+          data: signalData,
+          backgroundColor: 'transparent',
+          borderColor: '#2ecc71',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.2,
+          fill: false
+        }
+      ]
+    };
+
+    const chartOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: {
+        duration: 0 // No animation for real-time effect
+      },
+      interaction: {
+        intersect: false,
+        mode: 'index'
+      },
+      scales: {
+        x: {
+          title: { 
+            display: true, 
+            text: 'Time (s)',
+            color: '#000000',
+            font: {
+              weight: 'bold'
+            }
+          },
+          ticks: {
+            color: '#000000',
+            maxTicksLimit: 10
+          }
+        },
+        y: {
+          min: -1,
+          max: 1,
+          grid: {
+            color: 'rgba(0,0,0,0.1)'
+          },
+          title: { 
+            display: true, 
+            text: 'Amplitude',
+            color: '#000000',
+            font: {
+              weight: 'bold'
+            }
+          },
+          ticks: {
+            color: '#000000',
+            stepSize: 0.5
+          }
+        }
+      },
+      plugins: {
+        legend: {
+          display: false
+        },
+        tooltip: {
+          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+          titleColor: '#000000',
+          bodyColor: '#000000',
+          titleFont: {
+            family: 'Arial',
+            size: 14
+          },
+          bodyFont: {
+            family: 'Arial',
+            size: 13
+          },
+          borderColor: '#000000',
+          borderWidth: 1,
+          displayColors: false,
+          callbacks: {
+            title: function(tooltipItems) {
+              return 'Time: ' + tooltipItems[0].parsed.x.toFixed(2) + ' s';
+            },
+            label: function(context) {
+              return 'Amplitude: ' + context.parsed.y.toFixed(2);
+            }
+          }
+        }
+      }
+    };
+
+    const humanChart = new Chart(ctx, {
+      type: 'line',
+      data: chartData,
+      options: chartOptions
+    });
+
+    // Function to add new signal data point based on current amplitude and detection
+    function addNewDataPoint() {
+      // Calculate elapsed time since last update for realistic time tracking
+      const now = Date.now();
+      const elapsed = (now - lastTimestamp) / 1000;
+      lastTimestamp = now;
+      
+      // Shift time window
+      timeData = timeData.map(t => t + elapsed);
+      
+      // If we've moved past the time window, reset to keep display within bounds
+      if (timeData[0] > TIME_WINDOW) {
+        const shift = timeData[0];
+        timeData = timeData.map(t => t - shift);
+      }
+      
+      // Remove oldest data point
+      signalData.shift();
+      
+      // Calculate new value based on amplitude, detection, and time
+      const newValue = calculateSignalValue();
+      
+      // Add new value to end of array
+      signalData.push(newValue);
+      
+      // Update chart with new data
+      chartData.labels = timeData.map(t => t.toFixed(1));
+      chartData.datasets[0].data = signalData;
+        // Set chart color based on microwave frequency detection
+      if (currentAmplitude > 0) {
+        chartData.datasets[0].borderColor = '#2ecc71';  // Green when motion detected
+        chartData.datasets[0].borderWidth = 2;
+      } else {
+        chartData.datasets[0].borderColor = '#e74c3c';  // Red when no motion
+        chartData.datasets[0].borderWidth = 1.5;
+      }
+      
+      // Update chart with 'none' animation for performance
+      humanChart.update('none');
+    }
+      // Calculate signal value based on microwave frequency and detection
+    function calculateSignalValue() {
+      // Calculate how long since the last amplitude update
+      const timeSinceUpdate = (Date.now() - lastAmplitudeUpdate) / 1000;
+      
+      // Apply decay to amplitude - drops to near zero after 3 seconds for microwave sensor
+      amplitudeDecayFactor = Math.max(0.02, Math.exp(-timeSinceUpdate / 1.5));
+      
+      // Apply decay to effective amplitude (frequency)
+      const effectiveFrequency = currentAmplitude * amplitudeDecayFactor;
+      
+      // Base value is 0 if no frequency detected
+      if (effectiveFrequency <= 0) {
+        return 0;
+      }
+      
+      // Scale factor based on frequency value
+      const scaleFactor = Math.min(effectiveFrequency / 10, 1); // Normalize frequency
+      
+      // Current time in seconds since start
+      const elapsedTimeSec = (Date.now() - startTime) / 1000;
+      
+      // Create microwave signal pattern based on actual frequency
+      let value = 0;
+      
+      // Create signal pattern that represents microwave detection
+      const signalFreq = 2 + (effectiveFrequency * 0.1); // Base frequency for oscillation
+      const pulsePattern = Math.sin(elapsedTimeSec * Math.PI * signalFreq) * scaleFactor;
+      
+      // Add frequency-based amplitude modulation
+      const amplitudeModulation = 0.8 + (0.2 * Math.sin(elapsedTimeSec * Math.PI * 0.5));
+      
+      value = pulsePattern * amplitudeModulation;
+      
+      // Add small amount of noise to make it look realistic
+      value += (Math.random() - 0.5) * 0.05 * scaleFactor;
+      
+      // Ensure the signal amplitude represents the frequency intensity
+      return value * 0.8; // Scale to fit in -1 to 1 range
+    }
+
+    // Initialize variable for simulation interval
+    let simulationInterval = null;    // Function to update chart based on microwave frequency detection
+    function updateChartWithValues(detectionCount, frequencyValue) {
+      // Clear any existing simulation interval
+      if (simulationInterval) {
+        clearInterval(simulationInterval);
+        simulationInterval = null;
+      }
+      
+      // Reset start time for consistent pulses
+      startTime = Date.now();
+      lastTimestamp = Date.now();
+      
+      // Set up interval to continuously update the chart with new data points
+      simulationInterval = setInterval(() => {
+        addNewDataPoint();
+      }, 1000 / SAMPLE_RATE);
+      
+      // Update chart header
+      const chartHeader = document.querySelector('.card-header i + span');
+      if (frequencyValue > 0) {
+        chartHeader.textContent = `Microwave Signal (Frequency: ${frequencyValue})`;
+      } else {
+        chartHeader.textContent = 'Microwave Signal (No Motion)';
+      }
+    }// Listen for microwave sensor data changes
+    const microwaveRef = ref(db, 'microwave_data');
+    onValue(microwaveRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        // Get the latest entry (highest key)
+        const entries = Object.entries(data).sort((a, b) => parseInt(b[0]) - parseInt(a[0]));
+        if (entries.length > 0) {
+          const latestData = entries[0][1];
+          const frequency = latestData.frequency || 0;
+          
+          console.log("Microwave frequency received:", frequency);
+          
+          // Update current amplitude with frequency value
+          currentAmplitude = frequency;
+          lastAmplitudeUpdate = Date.now();
+          amplitudeDecayFactor = 1.0;          // Update people count based on frequency
+          // Once frequency > 0 is detected, keep count at 1 permanently
+          if (frequency > 0) {
+            humanDetected = true;
+          }
+          const detectionCount = humanDetected ? 1 : 0;
+          
+          // Update people count display
+          const peopleCountElement = document.getElementById('peopleCount');
+          animateValue(peopleCountElement, currentPeopleCount, detectionCount, 800);
+          currentPeopleCount = detectionCount;
+          
+          // Update presence indicator
+          updatePresenceIndicator(detectionCount);
+          
+          // Update chart header
+          const chartHeader = document.querySelector('.card-header i + span');
+          if (frequency > 0) {
+            chartHeader.textContent = `Microwave Signal (Frequency: ${frequency})`;
+          } else {
+            chartHeader.textContent = 'Microwave Signal (No Motion)';
+          }
+        }
+      }
+    });
+
+    // Listen for human_detection value changes (backup/additional detection)
+    const humanDetectionRef = ref(db, 'human_detection');
+    onValue(humanDetectionRef, (snapshot) => {
+      // Get the latest human detection value from Firebase
+      humanDetectionValue = snapshot.val() || 0;
+      console.log("Human detection value changed:", humanDetectionValue);
+    });
+      // Live button click event - restart the chart
+    document.querySelector('.live').addEventListener('click', () => {
+      // Reset arrays
+      signalData = Array(BUFFER_SIZE).fill(0);
+      timeData = Array(BUFFER_SIZE).fill(0).map((_, i) => i / SAMPLE_RATE);
+      
+      // Reset start time
+      startTime = Date.now();
+      lastTimestamp = Date.now();
+      lastAmplitudeUpdate = Date.now(); // Also reset amplitude update time
+      
+      // Reset human detection flag to allow fresh detection
+      humanDetected = false;
+      currentPeopleCount = 0;
+      document.getElementById('peopleCount').textContent = '0';
+      updatePresenceIndicator(0);
+      
+      // Restart chart update with current microwave frequency
+      updateChartWithValues(currentPeopleCount, currentAmplitude);
+    });
+    
+    // Initialize chart
+    updateChartWithValues(0, 0);
+  </script>
+
+  <!-- Bootstrap Bundle with Popper -->
+  <script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+  ></script>
+</body>
+</html>
