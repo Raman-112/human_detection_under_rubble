@@ -137,23 +137,6 @@
       background-color: rgba(0,0,0,0.03);
       z-index: 0;
     }
-    #peopleCount {
-      font-size: 6rem;
-      font-weight: 700;
-      color: var(--success);
-      text-shadow: 0 2px 10px rgba(46,204,113,0.2);
-      position: relative;
-      z-index: 1;
-      display: inline-block;
-      margin-bottom: 20px;
-    }
-    .count-label {
-      display: block;
-      font-size: 1.5rem;
-      color: #8795a1;
-      margin-top: 15px;
-      font-weight: 500;
-    }
     .table {
       margin-bottom: 0;
     }
@@ -219,9 +202,6 @@
       .dashboard-header h1 {
         font-size: 1.5rem;
       }
-      #peopleCount {
-        font-size: 4rem;
-      }
     }
     @media (max-width: 768px) {
       .dashboard-header h1 {
@@ -230,18 +210,6 @@
       .dashboard-header .badge {
         display: none;
       }
-      #peopleCount {
-        font-size: 3.5rem;
-      }
-    }
-    .counter-animation {
-      display: inline-block;
-      transform: scale(1);
-      animation: countUpdate 0.5s ease-out;
-    }
-    @keyframes countUpdate {
-      0% { transform: scale(1.3); color: #ff5a5f; }
-      100% { transform: scale(1); }
     }
     .people-card {
       height: 100%;
@@ -314,8 +282,6 @@
                   <span id="presenceIndicator" class="presence-status presence-inactive"></span>
                   <span id="presenceText" style="font-size: 2rem; font-weight: 600; color: #e74c3c;">No Presence Detected</span>
                 </div>
-                <div id="peopleCount" class="counter-animation">0</div>
-                <span class="count-label">Total Detections</span>
                 <p class="mt-4 text-muted">Monitoring active populations in the disaster area</p>
                 <div class="mt-3">
                   <button class="live">LIVE</button>
@@ -390,27 +356,7 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // Function to animate count change
-    function animateValue(element, start, end, duration) {
-      element.classList.remove('counter-animation');
-      if (start === end) return;
-      let startTimestamp = null;
-      const step = (timestamp) => {
-        if (!startTimestamp) startTimestamp = timestamp;
-        const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-        const value = Math.floor(progress * (end - start) + start);
-        element.textContent = value;
-        if (progress < 1) {
-          window.requestAnimationFrame(step);
-        } else {
-          element.textContent = end;
-          element.classList.add('counter-animation');
-        }
-      };
-      window.requestAnimationFrame(step);
-    }
-    
-    // Function to update presence indicator with actual count
+    // Function to update presence indicator
     function updatePresenceIndicator(detectionCount) {
       const indicator = document.getElementById('presenceIndicator');
       const text = document.getElementById('presenceText');
@@ -418,13 +364,7 @@
       if (detectionCount > 0) {
         // Active presence
         indicator.className = 'presence-status presence-active';
-        
-        // Show the exact count in the status message
-        if (detectionCount === 1) {
-          text.textContent = '1 Person Detected';
-        } else {
-          text.textContent = `${detectionCount} People Detected`;
-        }
+        text.textContent = 'Person Detected';
         text.style.color = '#2ecc71';
       } else {
         // No presence
@@ -432,13 +372,14 @@
         text.textContent = 'No Presence Detected';
         text.style.color = '#e74c3c';
       }
-    }    // Setup variables for Firebase data
+    }
+
+    // Setup variables for Firebase data
     let humanDetectionValue = 0;
-    let currentPeopleCount = 0;
     let currentAmplitude = 0;
-    let lastAmplitudeUpdate = Date.now(); // New variable for amplitude decay
-    let amplitudeDecayFactor = 1.0;      // New variable for decay factor
-    let humanDetected = false;           // Flag to keep count at 1 once detected
+    let lastAmplitudeUpdate = Date.now();
+    let amplitudeDecayFactor = 1.0;
+    let humanDetected = false;
 
     // Person Detections
     const personRef = ref(db, 'person_detections');
@@ -446,51 +387,46 @@
     onValue(personRef, (snapshot) => {
       const data = snapshot.val();
       const detectionTableBody = document.getElementById('detectionTableBody');
-      // Clear existing rows but maintain a reference to them for smooth transitions
-      const existingRows = Array.from(detectionTableBody.children);
       detectionTableBody.innerHTML = '';
 
       if (data) {
         const entries = Object.entries(data).sort((a, b) => {
-          // Sort by timestamp if available (newest first)
           const timeA = a[1].timestamp || '';
           const timeB = b[1].timestamp || '';
           return timeB.localeCompare(timeA);
         });
         
-        // Add rows to table with animation
         entries.forEach(([ key, val ], index) => {
           const row = document.createElement('tr');
-          if (index === 0) row.classList.add('new-row'); // Highlight newest entry
+          if (index === 0) row.classList.add('new-row');
           const timestampTd = document.createElement('td');
           const presenceTd = document.createElement('td');
           const confidenceTd = document.createElement('td');
           const bboxTd = document.createElement('td');
           timestampTd.textContent = val.timestamp || 'N/A';
-          // Add presence indicator
+          
           const presenceIndicator = document.createElement('span');
           presenceIndicator.className = 'badge ' + (index === 0 ? 'bg-success' : 'bg-secondary');
           presenceIndicator.textContent = 'Present';
           presenceTd.appendChild(presenceIndicator);
+          
           if (val.confidence) {
-            // Format confidence as percentage with color indicator
             const confidenceValue = (val.confidence * 100).toFixed(1);
             const confidenceSpan = document.createElement('span');
             confidenceSpan.textContent = `${confidenceValue}%`;
-            // Color based on confidence level
             if (val.confidence > 0.8) {
-              confidenceSpan.style.color = '#2ecc71'; // High confidence
+              confidenceSpan.style.color = '#2ecc71';
             } else if (val.confidence > 0.5) {
-              confidenceSpan.style.color = '#f39c12'; // Medium confidence
+              confidenceSpan.style.color = '#f39c12';
             } else {
-              confidenceSpan.style.color = '#e74c3c'; // Low confidence
+              confidenceSpan.style.color = '#e74c3c';
             }
             confidenceTd.appendChild(confidenceSpan);
           } else {
             confidenceTd.textContent = 'N/A';
           }
+          
           if (val.bbox) {
-            // Format bounding box data in a more readable way
             const bboxText = document.createElement('small');
             bboxText.innerHTML = `
               <span class="badge bg-secondary me-1">x1: ${val.bbox.x1}</span>
@@ -502,13 +438,14 @@
           } else {
             bboxTd.textContent = 'N/A';
           }
+          
           row.appendChild(timestampTd);
           row.appendChild(presenceTd);
           row.appendChild(confidenceTd);
           row.appendChild(bboxTd);
           detectionTableBody.appendChild(row);
         });
-        // Limit to 15 rows for performance
+        
         while (detectionTableBody.children.length > 15) {
           detectionTableBody.removeChild(detectionTableBody.lastChild);
         }
@@ -516,40 +453,36 @@
     });
 
     // Maintain a real-time buffer of signal data
-    const TIME_WINDOW = 8; // 10 second window
-    const SAMPLE_RATE = 14; // 10 samples per second
+    const TIME_WINDOW = 8;
+    const SAMPLE_RATE = 14;
     const BUFFER_SIZE = TIME_WINDOW * SAMPLE_RATE;
 
-    // Initialize time and data arrays
     let timeData = Array(BUFFER_SIZE).fill(0).map((_, i) => i / SAMPLE_RATE);
     let signalData = Array(BUFFER_SIZE).fill(0);
     let lastTimestamp = Date.now();
     let startTime = Date.now();
 
-    // Setup Chart.js for real-time signal display
     const ctx = document.getElementById('humanChart').getContext('2d');
     
-    // Chart configuration for oscilloscope-like display
     const chartData = {
       labels: timeData.map(t => t.toFixed(1)),
-      datasets: [        {
-          label: 'Microwave Frequency Signal',
-          data: signalData,
-          backgroundColor: 'transparent',
-          borderColor: '#2ecc71',
-          borderWidth: 2,
-          pointRadius: 0,
-          tension: 0.2,
-          fill: false
-        }
-      ]
+      datasets: [{
+        label: 'Microwave Frequency Signal',
+        data: signalData,
+        backgroundColor: 'transparent',
+        borderColor: '#2ecc71',
+        borderWidth: 2,
+        pointRadius: 0,
+        tension: 0.2,
+        fill: false
+      }]
     };
 
     const chartOptions = {
       responsive: true,
       maintainAspectRatio: false,
       animation: {
-        duration: 0 // No animation for real-time effect
+        duration: 0
       },
       interaction: {
         intersect: false,
@@ -627,118 +560,94 @@
       options: chartOptions
     });
 
-    // Function to add new signal data point based on current amplitude and detection
     function addNewDataPoint() {
-      // Calculate elapsed time since last update for realistic time tracking
       const now = Date.now();
       const elapsed = (now - lastTimestamp) / 1000;
       lastTimestamp = now;
       
-      // Shift time window
       timeData = timeData.map(t => t + elapsed);
       
-      // If we've moved past the time window, reset to keep display within bounds
       if (timeData[0] > TIME_WINDOW) {
         const shift = timeData[0];
         timeData = timeData.map(t => t - shift);
       }
       
-      // Remove oldest data point
       signalData.shift();
       
-      // Calculate new value based on amplitude, detection, and time
       const newValue = calculateSignalValue();
       
-      // Add new value to end of array
       signalData.push(newValue);
       
-      // Update chart with new data
       chartData.labels = timeData.map(t => t.toFixed(1));
       chartData.datasets[0].data = signalData;
-        // Set chart color based on microwave frequency detection
+      
       if (currentAmplitude > 0) {
-        chartData.datasets[0].borderColor = '#2ecc71';  // Green when motion detected
+        chartData.datasets[0].borderColor = '#2ecc71';
         chartData.datasets[0].borderWidth = 2;
       } else {
-        chartData.datasets[0].borderColor = '#e74c3c';  // Red when no motion
+        chartData.datasets[0].borderColor = '#e74c3c';
         chartData.datasets[0].borderWidth = 1.5;
       }
       
-      // Update chart with 'none' animation for performance
       humanChart.update('none');
     }
-      // Calculate signal value based on microwave frequency and detection
+
     function calculateSignalValue() {
-      // Calculate how long since the last amplitude update
       const timeSinceUpdate = (Date.now() - lastAmplitudeUpdate) / 1000;
       
-      // Apply decay to amplitude - drops to near zero after 3 seconds for microwave sensor
       amplitudeDecayFactor = Math.max(0.02, Math.exp(-timeSinceUpdate / 1.5));
       
-      // Apply decay to effective amplitude (frequency)
       const effectiveFrequency = currentAmplitude * amplitudeDecayFactor;
       
-      // Base value is 0 if no frequency detected
       if (effectiveFrequency <= 0) {
         return 0;
       }
       
-      // Scale factor based on frequency value
-      const scaleFactor = Math.min(effectiveFrequency / 10, 1); // Normalize frequency
+      const scaleFactor = Math.min(effectiveFrequency / 10, 1);
       
-      // Current time in seconds since start
       const elapsedTimeSec = (Date.now() - startTime) / 1000;
       
-      // Create microwave signal pattern based on actual frequency
       let value = 0;
       
-      // Create signal pattern that represents microwave detection
-      const signalFreq = 2 + (effectiveFrequency * 0.1); // Base frequency for oscillation
+      const signalFreq = 2 + (effectiveFrequency * 0.1);
       const pulsePattern = Math.sin(elapsedTimeSec * Math.PI * signalFreq) * scaleFactor;
       
-      // Add frequency-based amplitude modulation
       const amplitudeModulation = 0.8 + (0.2 * Math.sin(elapsedTimeSec * Math.PI * 0.5));
       
       value = pulsePattern * amplitudeModulation;
       
-      // Add small amount of noise to make it look realistic
       value += (Math.random() - 0.5) * 0.05 * scaleFactor;
       
-      // Ensure the signal amplitude represents the frequency intensity
-      return value * 0.8; // Scale to fit in -1 to 1 range
+      return value * 0.8;
     }
 
-    // Initialize variable for simulation interval
-    let simulationInterval = null;    // Function to update chart based on microwave frequency detection
+    let simulationInterval = null;
+
     function updateChartWithValues(detectionCount, frequencyValue) {
-      // Clear any existing simulation interval
       if (simulationInterval) {
         clearInterval(simulationInterval);
         simulationInterval = null;
       }
       
-      // Reset start time for consistent pulses
       startTime = Date.now();
       lastTimestamp = Date.now();
       
-      // Set up interval to continuously update the chart with new data points
       simulationInterval = setInterval(() => {
         addNewDataPoint();
       }, 1000 / SAMPLE_RATE);
       
-      // Update chart header
       const chartHeader = document.querySelector('.card-header i + span');
       if (frequencyValue > 0) {
         chartHeader.textContent = `Microwave Signal (Frequency: ${frequencyValue})`;
       } else {
         chartHeader.textContent = 'Microwave Signal (No Motion)';
       }
-    }// Listen for microwave sensor data changes
+    }
+
     const microwaveRef = ref(db, 'microwave_data');
     onValue(microwaveRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        // Get the latest entry (highest key)
         const entries = Object.entries(data).sort((a, b) => parseInt(b[0]) - parseInt(a[0]));
         if (entries.length > 0) {
           const latestData = entries[0][1];
@@ -746,25 +655,17 @@
           
           console.log("Microwave frequency received:", frequency);
           
-          // Update current amplitude with frequency value
           currentAmplitude = frequency;
           lastAmplitudeUpdate = Date.now();
-          amplitudeDecayFactor = 1.0;          // Update people count based on frequency
-          // Once frequency > 0 is detected, keep count at 1 permanently
+          amplitudeDecayFactor = 1.0;
+          
           if (frequency > 0) {
             humanDetected = true;
           }
           const detectionCount = humanDetected ? 1 : 0;
           
-          // Update people count display
-          const peopleCountElement = document.getElementById('peopleCount');
-          animateValue(peopleCountElement, currentPeopleCount, detectionCount, 800);
-          currentPeopleCount = detectionCount;
-          
-          // Update presence indicator
           updatePresenceIndicator(detectionCount);
           
-          // Update chart header
           const chartHeader = document.querySelector('.card-header i + span');
           if (frequency > 0) {
             chartHeader.textContent = `Microwave Signal (Frequency: ${frequency})`;
@@ -775,35 +676,26 @@
       }
     });
 
-    // Listen for human_detection value changes (backup/additional detection)
     const humanDetectionRef = ref(db, 'human_detection');
     onValue(humanDetectionRef, (snapshot) => {
-      // Get the latest human detection value from Firebase
       humanDetectionValue = snapshot.val() || 0;
       console.log("Human detection value changed:", humanDetectionValue);
     });
-      // Live button click event - restart the chart
+
     document.querySelector('.live').addEventListener('click', () => {
-      // Reset arrays
       signalData = Array(BUFFER_SIZE).fill(0);
       timeData = Array(BUFFER_SIZE).fill(0).map((_, i) => i / SAMPLE_RATE);
       
-      // Reset start time
       startTime = Date.now();
       lastTimestamp = Date.now();
-      lastAmplitudeUpdate = Date.now(); // Also reset amplitude update time
+      lastAmplitudeUpdate = Date.now();
       
-      // Reset human detection flag to allow fresh detection
       humanDetected = false;
-      currentPeopleCount = 0;
-      document.getElementById('peopleCount').textContent = '0';
       updatePresenceIndicator(0);
       
-      // Restart chart update with current microwave frequency
-      updateChartWithValues(currentPeopleCount, currentAmplitude);
+      updateChartWithValues(0, currentAmplitude);
     });
     
-    // Initialize chart
     updateChartWithValues(0, 0);
   </script>
 
